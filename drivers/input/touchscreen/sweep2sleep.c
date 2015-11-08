@@ -24,8 +24,8 @@ MODULE_LICENSE("GPL");
 
 extern void set_vibrate(int value);
 
-// 1=sweep right, 2=sweep left, 3=both, 0=disabled
-static int s2s_switch = 0;
+// 1=sweep right, 2=sweep left, 3=both
+static int s2s_switch = 2;
 
 static int touch_x = 0, touch_y = 0, firstx = 0;
 static bool touch_x_called = false, touch_y_called = false;
@@ -181,7 +181,7 @@ static void s2s_input_event(struct input_handle *handle, unsigned int type,
 }
 
 static int input_dev_filter(struct input_dev *dev) {
-	if (strstr(dev->name, "synaptics")) {
+	if (strstr(dev->name, "synaptics,s3320")) {
 		return 0;
 	} else {
 		return 1;
