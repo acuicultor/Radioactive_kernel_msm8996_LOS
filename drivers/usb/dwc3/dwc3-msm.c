@@ -245,6 +245,8 @@ struct dwc3_msm {
 	bool			init;
 };
 
+int otg_switch = 1;
+
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
 #define USB_HSPHY_3P3_VOL_MAX		3300000 /* uV */
 #define USB_HSPHY_3P3_HPM_LOAD		16000	/* uA */
