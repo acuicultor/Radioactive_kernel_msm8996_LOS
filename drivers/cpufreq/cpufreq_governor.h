@@ -231,6 +231,7 @@ struct zz_dbs_tuners {
 	unsigned int afs_threshold2;
 	unsigned int afs_threshold3;
 	unsigned int afs_threshold4;
+
 };
 
 /* Common Governor data across policies */
