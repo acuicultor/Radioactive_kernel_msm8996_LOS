@@ -407,6 +407,14 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 	for_each_cpu(freqs->cpu, policy->cpus)
 		__cpufreq_notify_transition(policy, freqs, state);
 }
+EXPORT_SYMBOL_GPL(cpufreq_notify_transition);
+/**
+ * cpufreq_notify_utilization - notify CPU userspace about CPU utilization
+ * change
+ *
+ * This function is called everytime the CPU load is evaluated by the
+ * ondemand governor. It notifies userspace of cpu load changes via sysfs.
+ */
 
 /* Do post notifications when there are chances that transition has failed */
 static void cpufreq_notify_post_transition(struct cpufreq_policy *policy,
@@ -2072,6 +2080,15 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	/* Save last value to restore later on errors */
 	policy->restore_freq = policy->cur;
 
+	/*
+	 * This might look like a redundant call as we are checking it again
+	 * after finding index. But it is left intentionally for cases where
+	 * exactly same freq is called again and so we can save on few function
+	 * calls.
+	 */
+	if (target_freq == policy->cur)
+		return 0;
+
 	if (cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
 	else if (cpufreq_driver->target_index) {
@@ -2119,6 +2136,23 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
+
+int __cpufreq_driver_getavg(struct cpufreq_policy *policy, unsigned int cpu)
+{
+    int ret = 0;
+    
+    policy = cpufreq_cpu_get(policy->cpu);
+    if (!policy)
+    return -EINVAL;
+    
+    if (cpu_online(cpu) && cpufreq_driver->getavg)
+    ret = cpufreq_driver->getavg(policy, cpu);
+    
+    cpufreq_cpu_put(policy);
+    return ret;
+}
+EXPORT_SYMBOL_GPL(__cpufreq_driver_getavg);
+
 
 /*
  * when "event" is CPUFREQ_GOV_LIMITS
