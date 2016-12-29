@@ -92,7 +92,6 @@ config CGROUP_BFQIO
 	  filesystem interface.  The name of the subsystem will be
 	  bfqio.
 
-<<<<<<< HEAD
 config IOSCHED_FIOPS
 	tristate "IOPS based I/O scheduler"
 	default y
