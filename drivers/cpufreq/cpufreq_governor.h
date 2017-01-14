@@ -215,6 +215,7 @@ struct ex_dbs_tuners {
 	unsigned int active_floor_freq;
 	unsigned int sampling_down_factor;
 	unsigned int powersave;
+	unsigned int touch_load_duration;
 };
 
 struct zz_dbs_tuners {
