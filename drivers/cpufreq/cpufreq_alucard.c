@@ -395,6 +395,8 @@ static void cpufreq_alucard_timer(unsigned long data)
 		ppol->down_rate = 1;
 
 #ifdef CONFIG_MSM_TRACK_FREQ_TARGET_INDEX
+	index = ppol->policy->cur_index;
+#else
 	index = cpufreq_frequency_table_get_index(ppol->policy, ppol->policy->cur);
 	if (index < 0) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
