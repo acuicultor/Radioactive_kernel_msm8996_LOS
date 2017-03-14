@@ -26,8 +26,8 @@
 #define DEF_FREQUENCY_DOWN_THRESHOLD_SUSPENDED	(45)
 #define DEF_FREQUENCY_STEP			(6)
 #define DEF_SAMPLING_RATE			(20000)
-#define DEF_BOOST_ENABLED			(1)
-#define DEF_BOOST_COUNT				(10)
+#define DEF_BOOST_ENABLED			(0)
+#define DEF_BOOST_COUNT				(8)
 #define DEF_BOOST_CEILING			(12)
 
 static DEFINE_PER_CPU(struct cs_cpu_dbs_info_s, cs_cpu_dbs_info);
