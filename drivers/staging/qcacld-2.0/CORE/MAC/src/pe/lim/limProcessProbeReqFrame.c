@@ -171,9 +171,9 @@ void limRemovePBCSessions(tpAniSirGlobal pMac, tSirMacAddr pRemoveMac,tpPESessio
                             (tANI_U8 *)pRemoveMac, sizeof(tSirMacAddr))) {
           prev->next = pbc->next;
           if (pbc == psessionEntry->pAPWPSPBCSession)
-            psessionEntry->pAPWPSPBCSession = pbc->next;
-            vos_mem_free(pbc);
-            return;
+              psessionEntry->pAPWPSPBCSession = pbc->next;
+          vos_mem_free(pbc);
+          return;
         }
         prev = pbc;
         pbc = pbc->next;
