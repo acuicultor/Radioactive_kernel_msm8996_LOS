@@ -3,7 +3,7 @@ rm .version
 make mrproper
 make clean
 # Kernel Details
-VER="_V1.1.3_oneplus3-3T"
+VER="_V1.2.6_oneplus3-3T"
 BASE_AK_VER="Radioactive"
 
 # Vars
@@ -13,9 +13,9 @@ export KBUILD_BUILD_USER=acuicultor
 export KBUILD_BUILD_HOST=NuclearPowerPlant
 
 #paths
-KERNEL_DIR="/home/acuicultor/android/kernels/rebase/Radioactive_Kernel_LOS_OP3_3T"
+KERNEL_DIR="/home/acuicultor/android/kernels/Radioactive_kernel_msm8996_LOS"
 ZIP_MOVE="${HOME}/android/releases"
-ZIMAGE_DIR="/home/acuicultor/android/kernels/rebase/Radioactive_Kernel_LOS_OP3_3T/arch/arm64/boot"
+ZIMAGE_DIR="/home/acuicultor/android/kernels/Radioactive_kernel_msm8996_LOS/arch/arm64/boot"
 MODULES_DIR="${HOME}/android/lazyflasher/modules"
 
 #build info 
