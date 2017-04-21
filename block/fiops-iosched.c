@@ -23,6 +23,8 @@
 
 #define VIOS_PRIO_SCALE (5)
 
+#define RQ_FIOPS(rq)		(struct fiops_queue *) ((rq)->elv.priv[0])
+
 struct fiops_rb_root {
 	struct rb_root rb;
 	struct rb_node *left;
@@ -541,7 +543,7 @@ static int fiops_merge(struct request_queue *q, struct request **req,
 	struct request *__rq;
 
 	__rq = fiops_find_rq_fmerge(fiopsd, bio);
-	if (__rq && elv_rq_merge_ok(__rq, bio)) {
+	if (__rq && elv_bio_merge_ok(__rq, bio)) {
 		*req = __rq;
 		return ELEVATOR_FRONT_MERGE;
 	}
@@ -577,7 +579,7 @@ fiops_merged_requests(struct request_queue *q, struct request *rq,
 		fiops_del_ioc_rr(fiopsd, ioc);
 }
 
-static int fiops_allow_merge(struct request_queue *q, struct request *rq,
+static int fiops_allow_bio_merge(struct request_queue *q, struct request *rq,
 			   struct bio *bio)
 {
 	struct fiops_data *fiopsd = q->elevator->elevator_data;
@@ -590,6 +592,12 @@ static int fiops_allow_merge(struct request_queue *q, struct request *rq,
 	cic = fiops_cic_lookup(fiopsd, current->io_context);
 
 	return cic == RQ_CIC(rq);
+}
+
+static int fiops_allow_rq_merge(struct request_queue *q, struct request *rq,
+			      struct request *next)
+{
+	return RQ_FIOPS(rq) == RQ_FIOPS(next);
 }
 
 static void fiops_exit_queue(struct elevator_queue *e)
@@ -727,7 +735,8 @@ static struct elevator_type iosched_fiops = {
 		.elevator_merge_fn =		fiops_merge,
 		.elevator_merged_fn =		fiops_merged_request,
 		.elevator_merge_req_fn =	fiops_merged_requests,
-		.elevator_allow_merge_fn =	fiops_allow_merge,
+		.elevator_allow_bio_merge_fn =	fiops_allow_bio_merge,
+ 		.elevator_allow_rq_merge_fn =	fiops_allow_rq_merge,
 		.elevator_dispatch_fn =		fiops_dispatch_requests,
 		.elevator_add_req_fn =		fiops_insert_request,
 		.elevator_completed_req_fn =	fiops_completed_request,
