@@ -199,7 +199,7 @@ dfs_process_phyerr_owl(struct ath_dfs *dfs, void *buf, u_int16_t datalen,
    /*
     * This is a spurious event; toss.
     */
-   if (rssi == 0 && dur == 0)
+   if (rssi == 0 && dur == 0) {
       dfs->ath_dfs_stats.datalen_discards++;
       return (0);
    }
@@ -746,11 +746,11 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, u_int16_t datalen,
     */
    ATH_DFSEVENTQ_LOCK(dfs);
    empty = STAILQ_EMPTY(&(dfs->dfs_eventq));
+   ATH_DFSEVENTQ_UNLOCK(dfs);
    if (empty) {
-      ATH_DFSEVENTQ_UNLOCK(dfs);
       return;
    }
-   ATH_DFSEVENTQ_UNLOCK(dfs);
+
    /*
     * If the channel is a turbo G channel, then the event is
     * for the adaptive radio (AR) pattern matching rather than

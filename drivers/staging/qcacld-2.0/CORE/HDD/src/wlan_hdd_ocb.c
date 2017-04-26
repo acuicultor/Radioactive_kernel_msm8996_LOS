@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -377,6 +377,8 @@ static int hdd_ocb_register_sta(hdd_adapter_t *adapter)
 
 	vos_status = WLANTL_RegisterSTAClient(hdd_ctx->pvosContext,
 					      hdd_rx_packet_cbk,
+					      hdd_tx_complete_cbk,
+					      hdd_tx_fetch_packet_cbk,
 					      &sta_desc,
 					      0);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
@@ -492,9 +494,9 @@ static void hdd_ocb_set_config_callback(void *context_ptr, void *response_ptr)
 			 * Open the TX data path
 			 */
 			if (!hdd_ocb_register_sta(adapter)) {
-				wlan_hdd_netif_queue_control(adapter,
-					WLAN_START_ALL_NETIF_QUEUE_N_CARRIER,
-					WLAN_CONTROL_PATH);
+				netif_carrier_on(adapter->dev);
+				netif_tx_start_all_queues(
+				    adapter->dev);
 			}
 		}
 
@@ -531,8 +533,9 @@ static int hdd_ocb_set_config_req(hdd_adapter_t *adapter,
 	context.magic = HDD_OCB_MAGIC;
 
 	hddLog(LOG1, FL("Disabling queues"));
-	wlan_hdd_netif_queue_control(adapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,
-				WLAN_CONTROL_PATH);
+	netif_tx_disable(adapter->dev);
+	netif_carrier_off(adapter->dev);
+
 	/* Call the SME API to set the config */
 	halStatus = sme_ocb_set_config(
 		((hdd_context_t *)adapter->pHddCtx)->hHal, &context,
@@ -593,8 +596,10 @@ static int __iw_set_dot11p_channel_sched(struct net_device *dev,
 	uint8_t *mac_addr;
 	int i, j;
 
-	if (wlan_hdd_validate_context(WLAN_HDD_GET_CTX(adapter)))
+	if (wlan_hdd_validate_context(WLAN_HDD_GET_CTX(adapter))) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -752,9 +757,6 @@ static const struct nla_policy qca_wlan_vendor_ocb_set_config_policy[
 	[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_FLAGS] = {
 		.type = NLA_U32
 	},
-	[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_DEF_TX_PARAM] = {
-		.type = NLA_BINARY
-	},
 };
 
 static const struct nla_policy qca_wlan_vendor_ocb_set_utc_time_policy[
@@ -901,8 +903,6 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	struct nlattr *ndl_active_state_list;
 	uint32_t ndl_active_state_list_len;
 	uint32_t flags = 0;
-	void *def_tx_param = NULL;
-	uint32_t def_tx_param_size = 0;
 	int i;
 	uint32_t channel_count, schedule_size;
 	struct sir_ocb_config *config;
@@ -916,8 +916,10 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -958,18 +960,10 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	ndl_active_state_list_len = (ndl_active_state_list ?
 				    nla_len(ndl_active_state_list) : 0);
 
-	/* Get the flags. This parameter is optional. */
+	/* Get the flags */
 	if (tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_FLAGS])
 		flags = nla_get_u32(tb[
 			QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_FLAGS]);
-
-	/* Get the default TX parameters. This parameter is optional. */
-	if (tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_DEF_TX_PARAM]) {
-		def_tx_param_size = nla_len(tb[
-			QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_DEF_TX_PARAM]);
-		def_tx_param = nla_data(tb[
-			QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_DEF_TX_PARAM]);
-	}
 
 	config = hdd_ocb_config_new(channel_count, schedule_size,
 				    ndl_chan_list_len,
@@ -982,8 +976,6 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	config->channel_count = channel_count;
 	config->schedule_size = schedule_size;
 	config->flags = flags;
-	config->def_tx_param = def_tx_param;
-	config->def_tx_param_size = def_tx_param_size;
 
 	/* Read the channel array */
 	channel_array = tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_CHANNEL_ARRAY];
@@ -1127,8 +1119,10 @@ static int __wlan_hdd_cfg80211_ocb_set_utc_time(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -1232,6 +1226,7 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	struct net_device *dev = wdev->netdev;
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(WLAN_HDD_GET_HAL_CTX(adapter));
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_OCB_START_TIMING_ADVERT_MAX + 1];
 	struct sir_ocb_timing_advert *timing_advert;
 	int rc = -EINVAL;
@@ -1243,8 +1238,10 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -1288,7 +1285,7 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 		tb[QCA_WLAN_VENDOR_ATTR_OCB_START_TIMING_ADVERT_REPEAT_RATE]);
 
 	timing_advert->template_length =
-		sme_ocb_gen_timing_advert_frame(hdd_ctx->hHal,
+		schGenTimingAdvertFrame(mac_ctx,
 			*(tSirMacAddr *)&adapter->macAddressCurrent.bytes,
 			&timing_advert->template_value,
 			&timing_advert->timestamp_offset,
@@ -1365,8 +1362,10 @@ __wlan_hdd_cfg80211_ocb_stop_timing_advert(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -1495,8 +1494,10 @@ __wlan_hdd_cfg80211_ocb_get_tsf_timer(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -1688,8 +1689,10 @@ static int __wlan_hdd_cfg80211_dcc_get_stats(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -1858,8 +1861,10 @@ static int __wlan_hdd_cfg80211_dcc_clear_stats(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
@@ -1982,8 +1987,10 @@ static int __wlan_hdd_cfg80211_dcc_update_ndl(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_context(hdd_ctx))
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hddLog(LOGE, FL("HDD context is not valid"));
 		goto end;
+	}
 
 	if (adapter->device_mode != WLAN_HDD_OCB) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));

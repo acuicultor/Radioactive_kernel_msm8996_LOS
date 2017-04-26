@@ -43,9 +43,6 @@
 #include "csrSupport.h"
 #include "vos_nvitem.h"
 #include "wlan_qct_tl.h"
-#include "vos_utils.h"
-
-#include "csrApi.h"
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
 #include "csrNeighborRoam.h"
@@ -270,7 +267,6 @@ typedef enum
    eCsrGlobalClassCStats,
    eCsrGlobalClassDStats,
    eCsrPerStaStats,
-   csr_per_chain_rssi_stats,
    eCsrMaxStats
 }eCsrRoamStatsClassTypes;
 
@@ -387,7 +383,7 @@ typedef struct tagCsrRoamStartBssParams
 
     tSirAddIeParams     addIeParams;
     uint8_t             sap_dot11mc;
-    uint16_t            beacon_tx_rate;
+
 }tCsrRoamStartBssParams;
 
 
@@ -397,6 +393,7 @@ typedef struct tagScanCmd
     csrScanCompleteCallback callback;
     void                    *pContext;
     eCsrScanReason          reason;
+    eCsrRoamState           lastRoamState[CSR_ROAM_SESSION_MAX];
     tCsrRoamProfile         *pToRoamProfile;
     tANI_U32                roamId;    //this is the ID related to the pToRoamProfile
     union
@@ -405,7 +402,7 @@ typedef struct tagScanCmd
         tCsrBGScanRequest bgScanRequest;
     }u;
     //This flag will be set while aborting the scan due to band change
-     eCsrAbortReason        abort_scan_indication;
+    tANI_BOOLEAN            abortScanDueToBandChange;
 }tScanCmd;
 
 typedef struct tagRoamCmd
@@ -625,7 +622,6 @@ typedef struct tagCsrConfig
     //The actual TX power is the lesser of this value and 11d.
     //If 11d is disable, the lesser of this and default setting.
     tANI_U8 nTxPowerCap;
-    tANI_BOOLEAN allow_tpc_from_ap;
     tANI_U32  statsReqPeriodicity;  //stats request frequency from PE while in full power
     tANI_U32  statsReqPeriodicityInPS;//stats request frequency from PE while in power save
     tANI_U32 dtimPeriod;
@@ -711,26 +707,7 @@ typedef struct tagCsrConfig
     struct roam_ext_params roam_params;
     tANI_BOOLEAN sendDeauthBeforeCon;
     tANI_BOOLEAN ignorePeerErpInfo;
-    bool ignore_peer_ht_opmode;
     v_U16_t pkt_err_disconn_th;
-    bool enable_fatal_event;
-    uint32_t tx_aggregation_size;
-    uint32_t rx_aggregation_size;
-    bool enable_edca_params;
-    uint32_t edca_vo_cwmin;
-    uint32_t edca_vi_cwmin;
-    uint32_t edca_bk_cwmin;
-    uint32_t edca_be_cwmin;
-    uint32_t edca_vo_cwmax;
-    uint32_t edca_vi_cwmax;
-    uint32_t edca_bk_cwmax;
-    uint32_t edca_be_cwmax;
-    uint32_t edca_vo_aifs;
-    uint32_t edca_vi_aifs;
-    uint32_t edca_bk_aifs;
-    uint32_t edca_be_aifs;
-    bool vendor_vht_for_24ghz_sap;
-    struct csr_sta_roam_policy_params sta_roam_policy;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
@@ -776,6 +753,7 @@ typedef struct tagCsrScanStruct
     vos_timer_t hTimerStaApConcTimer;
 #endif
     vos_timer_t hTimerIdleScan;
+    vos_timer_t hTimerResultCfgAging;
     //changes on every scan, it is used as a flag for whether 11d info is found on every scan
     tANI_U8 channelOf11dInfo;
     tANI_U8 scanResultCfgAgingTime;
@@ -851,7 +829,6 @@ typedef struct tagCsrScanStruct
     eCsrBand  scanBandPreference;  //This defines the band perference for scan
     csrScanCompleteCallback callback11dScanDone;
     bool fcc_constraint;
-    bool defer_update_channel_list;
 }tCsrScanStruct;
 
 //Save the connected information. This structure + connectedProfile
@@ -1078,7 +1055,6 @@ typedef struct tagCsrRoamStruct
     tCsrChannel base40MHzChannels;   //center channels for 40MHz channels
     eCsrRoamState curState[CSR_ROAM_SESSION_MAX];
     eCsrRoamSubState curSubState[CSR_ROAM_SESSION_MAX];
-    eCsrRoamState prev_state[CSR_ROAM_SESSION_MAX];
     //This may or may not have the up-to-date valid channel list
     //It is used to get WNI_CFG_VALID_CHANNEL_LIST and not allocate memory all the time
     tSirMacChanNum validChannelList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
@@ -1092,7 +1068,6 @@ typedef struct tagCsrRoamStruct
     tCsrGlobalClassCStatsInfo  classCStatsInfo;
     tCsrGlobalClassDStatsInfo  classDStatsInfo;
     tCsrPerStaStatsInfo        perStaStatsInfo[CSR_MAX_STA];
-    struct csr_per_chain_rssi_stats_info  per_chain_rssi_stats;
     tDblLinkList  statsClientReqList;
     tDblLinkList  peStatsReqList;
     tCsrTlStatsReqInfo  tlStatsReqInfo;
@@ -1121,7 +1096,6 @@ typedef struct tagCsrRoamStruct
     tANI_U8 *pReassocResp;  /* reassociation response from new AP */
     tANI_U16 reassocRespLen;  /* length of reassociation response */
 #endif
-    vos_timer_t packetdump_timer;
 }tCsrRoamStruct;
 
 
@@ -1282,7 +1256,7 @@ tANI_BOOLEAN csrIsConnStateDisconnectedWds( tpAniSirGlobal pMac, tANI_U32 sessio
 tANI_BOOLEAN csrIsAnySessionInConnectState( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsAllSessionDisconnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsStaSessionConnected( tpAniSirGlobal pMac );
-tANI_BOOLEAN csrIsP2pOrSapSessionConnected(tpAniSirGlobal pMac);
+tANI_BOOLEAN csrIsP2pSessionConnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsAnySessionConnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsInfraConnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsConcurrentInfraConnected( tpAniSirGlobal pMac );
@@ -1295,7 +1269,6 @@ eHalStatus csrIsBTAMPAllowed( tpAniSirGlobal pMac, tANI_U32 chnId );
 tANI_BOOLEAN csrIsValidMcConcurrentSession(tpAniSirGlobal pMac, tANI_U32 sessionId,
                                                   tSirBssDescription *pBssDesc);
 tANI_BOOLEAN csrIsConnStateConnectedInfraAp( tpAniSirGlobal pMac, tANI_U32 sessionId );
-bool csr_is_ndi_started(tpAniSirGlobal mac_ctx, uint32_t session_id);
 /*----------------------------------------------------------------------------
   \fn csrRoamRegisterLinkQualityIndCallback
 
