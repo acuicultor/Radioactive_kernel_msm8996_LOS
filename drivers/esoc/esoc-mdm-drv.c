@@ -169,7 +169,6 @@ static int mdm_subsys_powerup(const struct subsys_desc *crashed_subsys)
 								subsys);
 	struct mdm_drv *mdm_drv = esoc_get_drv_data(esoc_clink);
 	const struct esoc_clink_ops *clink_ops = esoc_clink->clink_ops;
-	int timeout = INT_MAX;
 
 	if (!esoc_clink->auto_boot && !esoc_req_eng_enabled(esoc_clink)) {
 		dev_dbg(&esoc_clink->dev, "Wait for req eng registration\n");
