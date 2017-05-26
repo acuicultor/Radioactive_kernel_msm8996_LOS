@@ -2,7 +2,7 @@
 #########################################################################################################################
 #########################################################################################################################
 # Kernel Details
-VER="V1.3.5_oneplus3-3T"
+VER="_V1.4.1"
 BASE_VER="Radioactive"
 
 # Set build folder
@@ -25,7 +25,7 @@ KERNEL_ARCH="arm64"
 KERNEL_DEFCONFIG="radioactive_defconfig"
 
 # Set kernel toolchain path
-TOOLCHAIN_DIR="${HOME}/Android/toolchains/ubernaro-aarch64-linux-android-4.9/bin/aarch64-linux-android-"
+TOOLCHAIN_DIR="${HOME}/Android/toolchains/linaro6.x-aarch64-kernel/bin/aarch64-linux-android-"
 
 # Set lazyflasher source git link
 LSOURCE_GIT="https://github.com/acuicultor/lazyflasher.git -b radioactive"
