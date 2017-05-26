@@ -4060,8 +4060,6 @@ static void synaptics_suspend_resume(struct work_struct *work)
 	}
 }
 
-<<<<<<< HEAD
-=======
 #ifdef SUPPORT_VIRTUAL_KEY
 #define VK_KEY_X    180
 #define VK_CENTER_Y 2020//2260
@@ -4194,7 +4192,6 @@ static DEVICE_ATTR(wake_gestures, (S_IWUSR|S_IRUGO),
 	wake_gestures_show, wake_gestures_dump);
 #endif
 
->>>>>>> 18b596f... wake_gestures: add s2w and dt2w
 static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 #ifdef CONFIG_SYNAPTIC_RED
