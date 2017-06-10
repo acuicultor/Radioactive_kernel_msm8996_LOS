@@ -4479,7 +4479,7 @@ static enum power_supply_property fg_power_props[] = {
 	POWER_SUPPLY_PROP_BATTERY_INFO,
 	POWER_SUPPLY_PROP_BATTERY_INFO_ID,
 	POWER_SUPPLY_PROP_BATTERY_4P4V_PRESENT,
-
+	POWER_SUPPLY_PROP_BATTERY_HEALTH,
 };
 
 static int fg_power_get_property(struct power_supply *psy,
@@ -4569,6 +4569,15 @@ static int fg_power_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_BATTERY_4P4V_PRESENT:
 		val->intval = chip->battery_4p4v_present;
+		break;
+	case POWER_SUPPLY_PROP_BATTERY_HEALTH:
+		if (chip->use_external_fg && external_fg
+				&& external_fg->get_batt_health)
+			val->intval = external_fg->get_batt_health();
+		else if (get_extern_fg_regist_done() == false)
+			val->intval = -1;
+		else
+			val->intval = -1;
 		break;
 	case POWER_SUPPLY_PROP_UPDATE_NOW:
 		val->intval = 0;
@@ -7312,7 +7321,8 @@ static int fg_init_irqs(struct fg_chip *chip)
 				pr_err("Unable to get first-est-done irq\n");
 				return rc;
 			}
-
+			enable_irq_wake(chip->soc_irq[FULL_SOC].irq);
+			chip->full_soc_irq_enabled = true;
 
 			if (!chip->use_vbat_low_empty_soc) {
 				rc = devm_request_irq(chip->dev,
