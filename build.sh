@@ -2,7 +2,7 @@
 #########################################################################################################################
 #########################################################################################################################
 # Kernel Details
-VER="_V1.5.7"
+VER="_V1.5.8"
 BASE_VER="Radioactive"
 
 # Set build folder
@@ -12,10 +12,10 @@ BUILDER_NAME="acuicultor"
 BUILD_HOST_NAME="NuclearPowerPlant"
 
 # Set kernel source git link
-KSOURCE_GIT="https://github.com/acuicultor/Radioactive_kernel_msm8996_LOS.git -b radioactive"
+KSOURCE_GIT="https://github.com/acuicultor/Radioactive_kernel_msm8996_LOS.git -b new"
 
 # Set kernel source folder
-KERNEL_DIR="/home/acuicultor/android/kernels/Radioactive_kernel_msm8996_LOS"
+KERNEL_DIR="/home/acuicultor/android/kernels/new msm8996/Radioactive_kernel_msm8996_LOS"
 ZIMAGE_DIR="$KERNEL_DIR/arch/arm64/boot" # Only change on soc/arch change ->arm64-arm etc.
 
 # Kernel Arch
@@ -28,7 +28,7 @@ KERNEL_DEFCONFIG="radioactive_defconfig"
 TOOLCHAIN_DIR="${HOME}/Android/toolchains/aarch64-linux-gnu-kernel-linaro-6.x/bin/aarch64-linux-gnu-"
 
 # Set lazyflasher source git link
-LSOURCE_GIT="https://github.com/acuicultor/lazyflasher.git -b radioactive"
+LSOURCE_GIT="https://github.com/acuicultor/lazyflasher.git -b new"
 LAZYFLASHER_DIR="$BUILD_DIR/lazyflasher" #No changes needed
 MODULES_DIR="$LAZYFLASHER_DIR/modules" #No changes needed
 
