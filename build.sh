@@ -15,7 +15,7 @@ BUILD_HOST_NAME="NuclearPowerPlant"
 KSOURCE_GIT="https://github.com/acuicultor/Radioactive_kernel_msm8996_LOS.git -b new"
 
 # Set kernel source folder
-KERNEL_DIR="/home/acuicultor/android/kernels/new msm8996/Radioactive_kernel_msm8996_LOS"
+KERNEL_DIR="/home/acuicultor/android/kernels/new-msm8996/Radioactive_kernel_msm8996_LOS"
 ZIMAGE_DIR="$KERNEL_DIR/arch/arm64/boot" # Only change on soc/arch change ->arm64-arm etc.
 
 # Kernel Arch
