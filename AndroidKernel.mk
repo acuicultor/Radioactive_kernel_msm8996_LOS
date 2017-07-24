@@ -44,7 +44,7 @@ ifeq ($(TARGET_PREBUILT_KERNEL),)
 
 KERNEL_GCC_NOANDROID_CHK := $(shell (echo "int main() {return 0;}" | $(KERNEL_CROSS_COMPILE)gcc -E -mno-android - > /dev/null 2>&1 ; echo $$?))
 ifeq ($(strip $(KERNEL_GCC_NOANDROID_CHK)),0)
-KERNEL_CFLAGS := KCFLAGS=-mno-android
+KERNEL_CFLAGS := KCFLAGS=-mno-android -Ofast -fno-inline-functions -fno-pic
 endif
 
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
