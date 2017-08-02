@@ -23,7 +23,7 @@ static DEFINE_MUTEX(fsync_mutex);
 
 // Declarations
 
-bool suspend_active __read_mostly = false;
+bool suspend_active __read_mostly = true;
 bool dyn_fsync_active __read_mostly = DYN_FSYNC_ACTIVE_DEFAULT;
 
 static struct notifier_block lcd_notif;
