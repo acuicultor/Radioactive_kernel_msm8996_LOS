@@ -3294,9 +3294,8 @@ limEnable11aProtection(tpAniSirGlobal pMac, tANI_U8 enable,
         PELOG3(limLog(pMac, LOG3, FL("psessionEntry is NULL"));)
         return eSIR_FAILURE;
     }
-        //overlapping protection configuration check.
-        if (overlap) {
-        } else {
+    //overlapping protection configuration check.
+    if (!overlap) {
             //normal protection config check
             if (LIM_IS_AP_ROLE(psessionEntry) &&
                 (!psessionEntry->cfgProtection.fromlla)) {
@@ -3304,7 +3303,7 @@ limEnable11aProtection(tpAniSirGlobal pMac, tANI_U8 enable,
                 PELOG3(limLog(pMac, LOG3, FL("protection from 11a is disabled"));)
                 return eSIR_SUCCESS;
             }
-        }
+    }
 
     if (enable)
     {
@@ -3447,8 +3446,7 @@ limEnable11gProtection(tpAniSirGlobal pMac, tANI_U8 enable,
     tANI_U8 overlap, tpUpdateBeaconParams pBeaconParams,tpPESession psessionEntry)
 {
     //overlapping protection configuration check.
-    if (overlap) {
-    } else {
+    if (!overlap) {
         //normal protection config check
         if (LIM_IS_AP_ROLE(psessionEntry) &&
                 !psessionEntry->cfgProtection.fromllb) {
@@ -4081,8 +4079,7 @@ limEnableHT20Protection(tpAniSirGlobal pMac, tANI_U8 enable,
         return eSIR_SUCCESS; // this protection  is only for HT stations.
 
         //overlapping protection configuration check.
-        if(overlap) {
-        } else {
+    if(!overlap) {
             //normal protection config check
             if (LIM_IS_AP_ROLE(psessionEntry) &&
                 !psessionEntry->cfgProtection.ht20) {
@@ -4096,7 +4093,7 @@ limEnableHT20Protection(tpAniSirGlobal pMac, tANI_U8 enable,
                     return eSIR_SUCCESS;
                 }
             }
-        }
+    }
 
     if (enable) {
         //If we are AP and HT capable, we need to set the HT OP mode
@@ -4285,8 +4282,7 @@ limEnableHTNonGfProtection(tpAniSirGlobal pMac, tANI_U8 enable,
         return eSIR_SUCCESS; // this protection  is only for HT stations.
 
         //overlapping protection configuration check.
-        if(overlap) {
-        } else {
+    if(!overlap) {
             //normal protection config check
             if (LIM_IS_AP_ROLE(psessionEntry) &&
                 !psessionEntry->cfgProtection.nonGf) {
@@ -4301,7 +4297,7 @@ limEnableHTNonGfProtection(tpAniSirGlobal pMac, tANI_U8 enable,
                     return eSIR_SUCCESS;
                 }
             }
-        }
+    }
 
     if (LIM_IS_AP_ROLE(psessionEntry)) {
         if ((enable) && (false == psessionEntry->beaconParams.llnNonGFCoexist))
@@ -4350,8 +4346,7 @@ limEnableHTLsigTxopProtection(tpAniSirGlobal pMac, tANI_U8 enable,
         return eSIR_SUCCESS; // this protection  is only for HT stations.
 
         //overlapping protection configuration check.
-        if(overlap) {
-        } else {
+    if(!overlap) {
             //normal protection config check
             if (LIM_IS_AP_ROLE(psessionEntry) &&
                !psessionEntry->cfgProtection.lsigTxop) {
@@ -4366,7 +4361,7 @@ limEnableHTLsigTxopProtection(tpAniSirGlobal pMac, tANI_U8 enable,
                     return eSIR_SUCCESS;
                 }
             }
-        }
+    }
 
     if (LIM_IS_AP_ROLE(psessionEntry)) {
         if ((enable) && (false == psessionEntry->beaconParams.fLsigTXOPProtectionFullSupport))
@@ -4416,8 +4411,7 @@ limEnableHtRifsProtection(tpAniSirGlobal pMac, tANI_U8 enable,
 
 
         //overlapping protection configuration check.
-        if(overlap) {
-        } else {
+    if(!overlap) {
              //normal protection config check
             if (LIM_IS_AP_ROLE(psessionEntry) &&
                !psessionEntry->cfgProtection.rifs) {
@@ -4432,7 +4426,7 @@ limEnableHtRifsProtection(tpAniSirGlobal pMac, tANI_U8 enable,
                   return eSIR_SUCCESS;
                }
             }
-        }
+    }
 
     if (LIM_IS_AP_ROLE(psessionEntry)) {
         // Disabling the RIFS Protection means Enable the RIFS mode of operation in the BSS
