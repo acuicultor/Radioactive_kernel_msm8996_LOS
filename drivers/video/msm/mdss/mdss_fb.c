@@ -3252,10 +3252,6 @@ int mdss_fb_atomic_commit(struct fb_info *info,
 				MSMFB_ATOMIC_COMMIT, true, false);
 			if (mfd->panel.type == WRITEBACK_PANEL) {
 				output_layer = commit_v1->output_layer;
-				if (!output_layer) {
-					pr_err("Output layer is null\n");
-					goto end;
-				}
 				wb_change = !mdss_fb_is_wb_config_same(mfd,
 						commit_v1->output_layer);
 				if (wb_change) {
@@ -3575,6 +3571,11 @@ static int __mdss_fb_display_thread(void *data)
 		wait_event(mfd->commit_wait_q,
 				(atomic_read(&mfd->commits_pending) ||
 				 kthread_should_stop()));
+
+		      if (ret) {
+ 				pr_info("%s: interrupted", __func__);
+ 				continue;
+ 		      }
 
 		if (kthread_should_stop())
 			break;
