@@ -55,6 +55,8 @@
 #include "mdss_smmu.h"
 #include "mdss_mdp.h"
 
+#include "mdss_livedisplay.h"
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -823,7 +825,8 @@ static int mdss_fb_create_sysfs(struct msm_fb_data_type *mfd)
 	rc = sysfs_create_group(&mfd->fbi->dev->kobj, &mdss_fb_attr_group);
 	if (rc)
 		pr_err("sysfs group creation failed, rc=%d\n", rc);
-	return rc;
+
+	return mdss_livedisplay_create_sysfs(mfd);
 }
 
 static void mdss_fb_remove_sysfs(struct msm_fb_data_type *mfd)
@@ -3056,7 +3059,7 @@ static int mdss_fb_pan_display_ex(struct fb_info *info,
 	if (var->yoffset > (info->var.yres_virtual - info->var.yres))
 		return -EINVAL;
 
-	ret = mdss_fb_wait_for_kickoff(mfd);
+	ret = mdss_fb_pan_idle(mfd);
 	if (ret) {
 		pr_err("wait_for_kick failed. rc=%d\n", ret);
 		return ret;

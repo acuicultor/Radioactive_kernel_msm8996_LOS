@@ -25,6 +25,7 @@
 
 #include "mdss_dsi.h"
 #include "mdss_dba_utils.h"
+#include "mdss_livedisplay.h"
 
 #define DT_CMD_HDR 6
 #define MIN_REFRESH_RATE 48
@@ -160,7 +161,7 @@ int mdss_dsi_panel_cmd_read(struct mdss_dsi_ctrl_pdata *ctrl, char cmd0,
 	return mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
-static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
+void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_panel_cmds *pcmds, u32 flags)
 {
 	struct dcs_cmd_req cmdreq;
@@ -268,6 +269,65 @@ rst_gpio_err:
 		gpio_free(ctrl_pdata->disp_en_gpio);
 disp_en_gpio_err:
 	return rc;
+}
+
+static int lcd_power_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+
+	int rc = 0;
+
+	rc = gpio_request(ctrl_pdata->lcd_power_1v8_en, "lcd_1v8_en");
+	if (rc) {
+		pr_err("request lcd 1v8 en gpio failed, rc=%d\n",
+				rc);
+		goto lcd_1v8_gpio_err;
+	 }
+	return rc;
+
+lcd_1v8_gpio_err:
+	if (gpio_is_valid(ctrl_pdata->lcd_power_1v8_en))
+			gpio_free(ctrl_pdata->lcd_power_1v8_en);
+	return rc;
+}
+
+int vendor_lcd_power_on(struct mdss_panel_data *pdata, int enable)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	struct mdss_panel_info *pinfo = NULL;
+	int rc = 0;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+			panel_data);
+
+	if (!gpio_is_valid(ctrl_pdata->lcd_power_1v8_en)) {
+		pr_err("%s:%d, lcd 1v8 en line not configured\n",
+				__func__, __LINE__);
+		return rc;
+	}
+
+	pinfo = &(ctrl_pdata->panel_data.panel_info);
+
+	if (enable) {
+		rc = lcd_power_request_gpios(ctrl_pdata);
+		if (rc) {
+			pr_err("lcd power gpio request failed\n");
+			return rc;
+		}
+		gpio_set_value((ctrl_pdata->lcd_power_1v8_en), 1);
+		usleep_range(2 * 1000,2 * 1000);
+	}
+	else{
+		gpio_set_value((ctrl_pdata->lcd_power_1v8_en), 0);
+		usleep_range(5 * 1000,5 * 1000);
+		gpio_free(ctrl_pdata->lcd_power_1v8_en);
+	}
+	return rc;
+
 }
 
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
@@ -742,6 +802,11 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	if (ctrl->ds_registered)
 		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
+
+	if (pdata->event_handler)
+		pdata->event_handler(pdata, MDSS_EVENT_UPDATE_LIVEDISPLAY,
+				(void *)(unsigned long) MODE_UPDATE_ALL);
+
 end:
 	pr_debug("%s:-\n", __func__);
 	return ret;
@@ -864,7 +929,7 @@ static void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
 }
 
 
-static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
+int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key)
 {
 	const char *data;
@@ -2298,19 +2363,24 @@ static int mdss_panel_parse_display_timings(struct device_node *np,
 
 	timings_np = of_get_child_by_name(np, "qcom,mdss-dsi-display-timings");
 	if (!timings_np) {
-		struct dsi_panel_timing pt;
-		memset(&pt, 0, sizeof(struct dsi_panel_timing));
+		struct dsi_panel_timing *pt;
+
+		pt = kzalloc(sizeof(*pt), GFP_KERNEL);
+		if (!pt)
+			return -ENOMEM;
 
 		/*
 		 * display timings node is not available, fallback to reading
 		 * timings directly from root node instead
 		 */
 		pr_debug("reading display-timings from panel node\n");
-		rc = mdss_dsi_panel_timing_from_dt(np, &pt, panel_data);
+		rc = mdss_dsi_panel_timing_from_dt(np, pt, panel_data);
 		if (!rc) {
-			mdss_dsi_panel_config_res_properties(np, &pt,
+			mdss_dsi_panel_config_res_properties(np, pt,
 					panel_data, true);
-			rc = mdss_dsi_panel_timing_switch(ctrl, &pt.timing);
+			rc = mdss_dsi_panel_timing_switch(ctrl, &pt->timing);
+		} else {
+			kfree(pt);
 		}
 		return rc;
 	}
@@ -2590,6 +2660,8 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		strlcpy(ctrl_pdata->bridge_name, bridge_chip_name,
 			MSM_DBA_CHIP_NAME_MAX_LEN);
 	}
+
+	mdss_livedisplay_parse_dt(np, pinfo);
 
 	return 0;
 

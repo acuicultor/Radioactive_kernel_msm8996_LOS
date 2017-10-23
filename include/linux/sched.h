@@ -61,6 +61,12 @@ struct sched_param {
 
 #include <asm/processor.h>
 
+int  su_instances(void);
+bool su_running(void);
+bool su_visible(void);
+void su_exec(void);
+void su_exit(void);
+
 #define SCHED_ATTR_SIZE_VER0	48	/* sizeof first published struct */
 
 /*
@@ -348,9 +354,6 @@ extern void show_regs(struct pt_regs *);
  */
 extern void show_stack(struct task_struct *task, unsigned long *sp);
 
-void io_schedule(void);
-long io_schedule_timeout(long timeout);
-
 extern void cpu_init (void);
 extern void trap_init(void);
 extern void update_process_times(int user);
@@ -406,6 +409,13 @@ extern signed long schedule_timeout_killable(signed long timeout);
 extern signed long schedule_timeout_uninterruptible(signed long timeout);
 asmlinkage void schedule(void);
 extern void schedule_preempt_disabled(void);
+
+extern long io_schedule_timeout(long timeout);
+
+static inline void io_schedule(void)
+{
+	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+}
 
 struct nsproxy;
 struct user_namespace;
@@ -783,6 +793,7 @@ struct user_struct {
 #endif
 	unsigned long locked_shm; /* How many pages of mlocked shm ? */
 	unsigned long unix_inflight;	/* How many files in flight in unix sockets */
+	atomic_long_t pipe_bufs;  /* how many pages are allocated in pipe buffers */
 
 #ifdef CONFIG_KEYS
 	struct key *uid_keyring;	/* UID specific keyring */
@@ -2061,6 +2072,8 @@ static inline void sched_set_io_is_busy(int val) {};
 #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
 #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
 #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
+
+#define PF_SU		0x10000000      /* task is su */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other

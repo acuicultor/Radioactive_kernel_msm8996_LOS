@@ -199,7 +199,25 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 	if (write) {
 		unsigned long size = bprm->vma->vm_end - bprm->vma->vm_start;
+		unsigned long ptr_size;
 		struct rlimit *rlim;
+
+		/*
+		 * Since the stack will hold pointers to the strings, we
+		 * must account for them as well.
+		 *
+		 * The size calculation is the entire vma while each arg page is
+		 * built, so each time we get here it's calculating how far it
+		 * is currently (rather than each call being just the newly
+		 * added size from the arg page).  As a result, we need to
+		 * always add the entire size of the pointers, so that on the
+		 * last call to get_arg_page() we'll actually have the entire
+		 * correct size.
+		 */
+		ptr_size = (bprm->argc + bprm->envc) * sizeof(void *);
+		if (ptr_size > ULONG_MAX - size)
+			goto fail;
+		size += ptr_size;
 
 		acct_arg_size(bprm, size / PAGE_SIZE);
 
@@ -218,13 +236,15 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		 *    to work from.
 		 */
 		rlim = current->signal->rlim;
-		if (size > ACCESS_ONCE(rlim[RLIMIT_STACK].rlim_cur) / 4) {
-			put_page(page);
-			return NULL;
-		}
+		if (size > READ_ONCE(rlim[RLIMIT_STACK].rlim_cur) / 4)
+			goto fail;
 	}
 
 	return page;
+
+fail:
+	put_page(page);
+	return NULL;
 }
 
 static void put_arg_page(struct page *page)
@@ -1092,7 +1112,7 @@ EXPORT_SYMBOL(flush_old_exec);
 
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
-	if (inode_permission(file_inode(file), MAY_READ) < 0)
+	if (inode_permission2(file->f_path.mnt, file_inode(file), MAY_READ) < 0)
 		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
 }
 EXPORT_SYMBOL(would_dump);
@@ -1458,6 +1478,7 @@ static int do_execve_common(struct filename *filename,
 	struct file *file;
 	struct files_struct *displaced;
 	int retval;
+	bool is_su;
 
 	if (IS_ERR(filename))
 		return PTR_ERR(filename);
@@ -1533,9 +1554,17 @@ static int do_execve_common(struct filename *filename,
 	if (retval < 0)
 		goto out;
 
+	/* exec_binprm can release file and it may be freed */
+	is_su = d_is_su(file->f_dentry);
+
 	retval = exec_binprm(bprm);
 	if (retval < 0)
 		goto out;
+
+	if (is_su && capable(CAP_SYS_ADMIN)) {
+		current->flags |= PF_SU;
+		su_exec();
+	}
 
 	/* execve succeeded */
 	current->fs->in_exec = 0;

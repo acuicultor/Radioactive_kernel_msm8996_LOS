@@ -33,6 +33,8 @@
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
+#include "mdss_livedisplay.h"
+
 
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
@@ -272,6 +274,7 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev,
 	return rc;
 }
 
+extern int vendor_lcd_power_on(struct mdss_panel_data *pdata, int enable);
 static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -302,6 +305,8 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 
+	vendor_lcd_power_on(pdata, 0);
+
 end:
 	return ret;
 }
@@ -327,6 +332,8 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 		return ret;
 	}
+
+	vendor_lcd_power_on(pdata, 1);
 
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
@@ -2642,6 +2649,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 					&ctrl_pdata->dba_work, HZ);
 		}
 		break;
+	case MDSS_EVENT_UPDATE_LIVEDISPLAY:
+		rc = mdss_livedisplay_update(ctrl_pdata, (int)(unsigned long) arg);
+		break;
 	default:
 		pr_debug("%s: unhandled event=%d\n", __func__, event);
 		break;
@@ -3948,6 +3958,12 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
 		pr_err("%s:%d, reset gpio not specified\n",
 						__func__, __LINE__);
+
+	ctrl_pdata->lcd_power_1v8_en = of_get_named_gpio(ctrl_pdev->dev.of_node,
+				 "qcom,lcd-vddi-en-gpio", 0);
+		if (!gpio_is_valid(ctrl_pdata->lcd_power_1v8_en))
+			pr_err("%s:%d, lcd_power_1v8_en gpio not specified\n",
+							__func__, __LINE__);
 
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {
 

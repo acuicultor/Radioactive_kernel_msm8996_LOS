@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1127,6 +1127,7 @@ void msm_vfe47_cfg_fetch_engine(struct vfe_device *vfe_dev,
 {
 	uint32_t x_size_word, temp;
 	struct msm_vfe_fetch_engine_cfg *fe_cfg = NULL;
+	uint32_t main_unpack_pattern = 0;
 
 	if (pix_cfg->input_mux == EXTERNAL_READ) {
 		fe_cfg = &pix_cfg->fetch_engine_cfg;
@@ -1167,7 +1168,19 @@ void msm_vfe47_cfg_fetch_engine(struct vfe_device *vfe_dev,
 		msm_camera_io_w(temp, vfe_dev->vfe_base + 0x314);
 
 		/* need to use formulae to calculate MAIN_UNPACK_PATTERN*/
-		msm_camera_io_w(0xF6543210, vfe_dev->vfe_base + 0x318);
+		switch (vfe_dev->axi_data.src_info[VFE_PIX_0].input_format) {
+		case V4L2_PIX_FMT_P16BGGR10:
+		case V4L2_PIX_FMT_P16GBRG10:
+		case V4L2_PIX_FMT_P16GRBG10:
+		case V4L2_PIX_FMT_P16RGGB10:
+			main_unpack_pattern = 0xB210;
+			break;
+		default:
+			main_unpack_pattern = 0xF6543210;
+			break;
+		}
+		msm_camera_io_w(main_unpack_pattern,
+			vfe_dev->vfe_base + 0x318);
 		msm_camera_io_w(0xF, vfe_dev->vfe_base + 0x334);
 
 		temp = msm_camera_io_r(vfe_dev->vfe_base + 0x50);
@@ -2575,8 +2588,6 @@ int msm_vfe47_enable_regulators(struct vfe_device *vfe_dev, int enable)
 int msm_vfe47_get_platform_data(struct vfe_device *vfe_dev)
 {
 	int rc = 0;
-	void __iomem *vfe_fuse_base;
-	uint32_t vfe_fuse_base_size;
 
 	vfe_dev->vfe_base = msm_camera_get_reg_base(vfe_dev->pdev, "vfe", 0);
 	if (!vfe_dev->vfe_base)
@@ -2601,18 +2612,7 @@ int msm_vfe47_get_platform_data(struct vfe_device *vfe_dev)
 		rc = -ENOMEM;
 		goto get_res_fail;
 	}
-	vfe_dev->vfe_hw_limit = 0;
-	vfe_fuse_base = msm_camera_get_reg_base(vfe_dev->pdev,
-					"vfe_fuse", 0);
-	vfe_fuse_base_size = msm_camera_get_res_size(vfe_dev->pdev,
-						"vfe_fuse");
-	if (vfe_fuse_base) {
-		if (vfe_fuse_base_size)
-			vfe_dev->vfe_hw_limit =
-				(msm_camera_io_r(vfe_fuse_base) >> 7) & 0x3;
-		msm_camera_put_reg_base(vfe_dev->pdev, vfe_fuse_base,
-				"vfe_fuse", 0);
-	}
+
 	rc = vfe_dev->hw_info->vfe_ops.platform_ops.get_regulators(vfe_dev);
 	if (rc)
 		goto get_regulator_fail;

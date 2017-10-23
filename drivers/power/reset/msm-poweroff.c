@@ -290,6 +290,10 @@ static void msm_restart_prepare(const char *cmd)
 				(cmd != NULL && cmd[0] != '\0'));
 	}
 
+#ifdef CONFIG_MSM_PRESERVE_MEM
+	need_warm_reset = true;
+#endif
+
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
@@ -332,8 +336,14 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 		} else {
+			pr_notice("%s : cmd is %s, set to reboot mode\n", __func__, cmd);
+			qpnp_pon_set_restart_reason(PON_RESTART_REASON_REBOOT);
 			__raw_writel(0x77665501, restart_reason);
 		}
+	} else {
+		pr_notice("%s : cmd is NULL, set to reboot mode\n", __func__);
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_REBOOT);
+		__raw_writel(0x77665501, restart_reason);
 	}
 
 	flush_cache_all();
