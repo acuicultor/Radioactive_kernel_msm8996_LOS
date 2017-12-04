@@ -225,6 +225,7 @@ static unsigned int choose_freq(struct cpufreq_policy *policy,
 	if (!policy)
 		return 0;
 
+	tmp_freq = clamp_val(tmp_freq, policy->min, policy->max);
 	table = policy->freq_table;
 	if (isup) {
 		for (i = index; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
@@ -278,13 +279,13 @@ static bool update_load(int cpu)
 		ppol->policy->governor_data;
 	u64 now;
 	u64 now_idle;
-	unsigned int delta_idle;
-	unsigned int delta_time;
+	u64 delta_idle;
+	u64 delta_time;
 	bool ignore = false;
 
 	now_idle = get_cpu_idle_time(cpu, &now, tunables->io_is_busy);
-	delta_idle = (unsigned int)(now_idle - pcpu->time_in_idle);
-	delta_time = (unsigned int)(now - pcpu->time_in_idle_timestamp);
+	delta_idle = (now_idle - pcpu->time_in_idle);
+	delta_time = (now - pcpu->time_in_idle_timestamp);
 
 	WARN_ON_ONCE(!delta_time);
 
