@@ -1571,6 +1571,8 @@ int __init cpu_clock_8996_early_init(void)
 	} else if (of_find_compatible_node(NULL, NULL,
 					 "qcom,cpu-clock-8996-v3")) {
 		cpu_clocks_v3 = true;
+		pwrcl_early_boot_rate = PWRCL_EARLY_BOOT_RATE;
+		perfcl_early_boot_rate = PERFCL_EARLY_BOOT_RATE;
 	} else if (!of_find_compatible_node(NULL, NULL,
 					 "qcom,cpu-clock-8996")) {
 		return 0;
