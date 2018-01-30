@@ -307,8 +307,8 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if (cdata->governor == GOV_ELEMENTALX)
 			rc = cdata->init_ex(dbs_data, policy);
 		else
-		dbs_data->cpu = cpu;
-		rc = cdata->init(dbs_data);
+			rc = cdata->init(dbs_data);
+
 		if (rc) {
 			pr_err("%s: POLICY_INIT: init() failed\n", __func__);
 			kfree(dbs_data);
@@ -383,7 +383,6 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		cs_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);
 		sampling_rate = cs_tuners->sampling_rate;
 		ignore_nice = cs_tuners->ignore_nice_load;
-
 	} else if (dbs_data->cdata->governor == GOV_ELEMENTALX) {
 		ex_tuners = dbs_data->tuners;
 		ex_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);

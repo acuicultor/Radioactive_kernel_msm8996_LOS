@@ -258,7 +258,6 @@ static bool update_load(int cpu)
 static void cpufreq_darkness_timer(unsigned long data)
 {
 	struct cpufreq_darkness_policyinfo *ppol = per_cpu(polinfo, data);
-	struct cpufreq_darkness_tunables *tunables = ppol->policy->governor_data;
 #ifdef CONFIG_STATE_NOTIFIER
 	struct cpufreq_darkness_tunables *tunables =
 		ppol->policy->governor_data;
