@@ -98,7 +98,7 @@ static void set_boost_freq(struct boost_policy *b,
 		uint32_t cpu, uint32_t freq);
 static void set_boost_bit(struct boost_policy *b, uint32_t state);
 static void clear_boost_bit(struct boost_policy *b, uint32_t state);
-static void unboost_all_cpus(struct boost_policy *b);
+static void unboost_all_cpus(struct ib_config *ib);
 static void update_online_cpu_policy(void);
 static bool validate_cpu_freq(struct cpufreq_frequency_table *pos,
 		uint32_t *freq);
@@ -225,9 +225,11 @@ static void fb_boost_main(struct work_struct *work)
 static void fb_unboost_main(struct work_struct *work)
 {
 	struct boost_policy *b = boost_policy_g;
+	struct ib_config *ib = &b->ib;
 
-	/* This clears the wake-boost bit and unboosts everything */
-	unboost_all_cpus(b);
+	/* Clear wake boost bit */
+	clear_boost_bit(b, WAKE_BOOST);
+	unboost_all_cpus(ib);
 }
 
 static int do_cpu_boost(struct notifier_block *nb,
@@ -288,6 +290,7 @@ static int state_notifier_callback(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct boost_policy *b = boost_policy_g;
+	struct ib_config *ib = &b->ib;
 	struct fb_policy *fb = &b->fb;
 	uint32_t state;
 
@@ -498,13 +501,8 @@ static void clear_boost_bit(struct boost_policy *b, uint32_t state)
 	spin_unlock(&b->lock);
 }
 
-static void unboost_all_cpus(struct boost_policy *b)
+static void unboost_all_cpus(struct ib_config *ib)
 {
-	struct ib_config *ib = &b->ib;
-
-	/* Clear wake boost bit */
-	clear_boost_bit(b, WAKE_BOOST);
-
 	/* Clear cpus_to_boost bits for all CPUs */
 	ib->cpus_to_boost = 0;
 
@@ -582,7 +580,7 @@ static ssize_t enabled_write(struct device *dev,
 		/* Stop everything */
 		cancel_work_sync(&fb->boost_work);
 		cancel_work_sync(&ib->boost_work);
-		unboost_all_cpus(b);
+		unboost_all_cpus(ib);
 	}
 
 	return size;
