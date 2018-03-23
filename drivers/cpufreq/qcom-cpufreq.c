@@ -3,7 +3,7 @@
  * MSM architecture cpufreq driver
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2016, The Linux Foundation. All rights reserved.
  * Author: Mike A. Chan <mikechan@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -28,7 +28,17 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <trace/events/power.h>
+#include <soc/qcom/socinfo.h>
 
+// AP: Default startup frequencies
+#define CONFIG_CPU_FREQ_MIN_CLUSTER1	307200
+#define CONFIG_CPU_FREQ_MAX_CLUSTER1	1593600
+#define CONFIG_CPU_FREQ_MIN_CLUSTER2	307200
+#define CONFIG_CPU_FREQ_MAX_CLUSTER2	2150400
+#define CONFIG_CPU_FREQ_MAX_CLUSTER2PRO	2342400
+
+#define LITTLE_CPU_NUM 0
+#define BIG_CPU_NUM 2
 static DEFINE_MUTEX(l2bw_lock);
 
 static struct clk *cpu_clk[NR_CPUS];
@@ -107,6 +117,11 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 
 	ret = set_cpu_freq(policy, table[index].frequency,
 			   table[index].driver_data);
+#ifdef CONFIG_MSM_TRACK_FREQ_TARGET_INDEX
+	if (!ret)
+		policy->cur_index = index;
+#endif
+
 done:
 	mutex_unlock(&per_cpu(suspend_data, policy->cpu).suspend_mutex);
 	return ret;
@@ -144,7 +159,41 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 			cpumask_set_cpu(cpu, policy->cpus);
 
 	if (cpufreq_frequency_table_cpuinfo(policy, table))
+	{
+		// AP: set default frequencies to prevent overclocking or underclocking during start
+		if (policy->cpu <= 1)
+		{
+			policy->cpuinfo.min_freq = CONFIG_CPU_FREQ_MIN_CLUSTER1;
+			policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER1;
+		}
+
+		if (policy->cpu >= 2)
+		{
+			policy->cpuinfo.min_freq = CONFIG_CPU_FREQ_MIN_CLUSTER2;
+			if (socinfo_get_id() == 305)
+				policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER2PRO;
+			else
+				policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_MAX_CLUSTER2;
+		}
+
 		pr_err("cpufreq: failed to get policy min/max\n");
+	}
+
+	// AP: set default frequencies to prevent overclocking or underclocking during start
+	if (policy->cpu <= 1)
+	{
+		policy->min = CONFIG_CPU_FREQ_MIN_CLUSTER1;
+		policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER1;
+	}
+
+	if (policy->cpu >= 2)
+	{
+		policy->min = CONFIG_CPU_FREQ_MIN_CLUSTER2;
+		if (socinfo_get_id() == 305)
+			policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER2PRO;
+		else
+			policy->max = CONFIG_CPU_FREQ_MAX_CLUSTER2;
+	}
 
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
@@ -168,6 +217,9 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 			policy->cpu, cur_freq, table[index].frequency);
 	policy->cur = table[index].frequency;
 	policy->freq_table = table;
+#ifdef CONFIG_MSM_TRACK_FREQ_TARGET_INDEX
+	policy->cur_index = index;
+#endif
 
 	return 0;
 }
@@ -318,7 +370,7 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 						char *tbl_name, int cpu)
 {
-	int ret, nf, i;
+	int ret, nf, i, j;
 	u32 *data;
 	struct cpufreq_frequency_table *ftbl;
 
@@ -342,6 +394,7 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 	if (!ftbl)
 		return ERR_PTR(-ENOMEM);
 
+	j = 0;
 	for (i = 0; i < nf; i++) {
 		unsigned long f;
 
@@ -351,29 +404,20 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 		f /= 1000;
 
 		/*
-		 * Check if this is the last feasible frequency in the table.
+		 * Don't repeat frequencies if they round up to the same clock
+		 * frequency.
 		 *
-		 * The table listing frequencies higher than what the HW can
-		 * support is not an error since the table might be shared
-		 * across CPUs in different speed bins. It's also not
-		 * sufficient to check if the rounded rate is lower than the
-		 * requested rate as it doesn't cover the following example:
-		 *
-		 * Table lists: 2.2 GHz and 2.5 GHz.
-		 * Rounded rate returns: 2.2 GHz and 2.3 GHz.
-		 *
-		 * In this case, we can CPUfreq to use 2.2 GHz and 2.3 GHz
-		 * instead of rejecting the 2.5 GHz table entry.
 		 */
-		if (i > 0 && f <= ftbl[i-1].frequency)
-			break;
+		if (j > 0 && f <= ftbl[j - 1].frequency)
+			continue;
 
-		ftbl[i].driver_data = i;
-		ftbl[i].frequency = f;
+		ftbl[j].driver_data = j;
+		ftbl[j].frequency = f;
+		j++;
 	}
 
-	ftbl[i].driver_data = i;
-	ftbl[i].frequency = CPUFREQ_TABLE_END;
+	ftbl[j].driver_data = j;
+	ftbl[j].frequency = CPUFREQ_TABLE_END;
 
 	devm_kfree(dev, data);
 

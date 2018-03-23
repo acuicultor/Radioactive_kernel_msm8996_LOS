@@ -2485,9 +2485,6 @@ void set_hmp_defaults(void)
 	update_up_down_migrate();
 
 #ifdef CONFIG_SCHED_FREQ_INPUT
-	sched_major_task_runtime =
-		mult_frac(sched_ravg_window, MAJOR_TASK_PCT, 100);
-
 	sched_freq_aggregate_threshold =
 		pct_to_real(sysctl_sched_freq_aggregate_threshold_pct);
 #endif
@@ -3358,7 +3355,8 @@ retry:
 		else if (stats.least_loaded_cpu >= 0)
 			target = stats.least_loaded_cpu;
 	} else if (stats.best_cpu >= 0) {
-		if (stats.best_cpu != task_cpu(p) &&
+		if (stats.best_sibling_cpu >= 0 &&
+				stats.best_cpu != task_cpu(p) &&
 				stats.min_cost == stats.best_sibling_cpu_cost)
 			stats.best_cpu = stats.best_sibling_cpu;
 
