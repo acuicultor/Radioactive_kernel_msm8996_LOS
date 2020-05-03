@@ -22,19 +22,16 @@
 *.lst
 *.symtypes
 *.order
+modules.builtin
 *.elf
 *.bin
-*.gz
+#*.gz
 *.bz2
 *.lzma
 *.xz
-*.lz4
 *.lzo
-*.patch
+# *.patch
 *.gcno
-modules.builtin
-Module.symvers
-*.dwo
 
 #
 # Top-level generic files
@@ -46,6 +43,7 @@ Module.symvers
 /vmlinuz
 /System.map
 /Module.markers
+/Module.symvers
 
 #
 # Debian directory (make deb-pkg)
@@ -62,6 +60,7 @@ Module.symvers
 # Generated include files
 #
 include/config
+include/linux/version.h
 include/generated
 arch/*/include/generated
 
@@ -86,16 +85,15 @@ GTAGS
 *~
 \#*#
 
-#
-# Leavings from module signing
-#
-extra_certificates
-signing_key.priv
-signing_key.x509
-x509.genkey
+# Generated source files
+smd_rpc_sym.c
 
-# Kconfig presets
-all.config
+# Kernel compilation output directory
+out/
 
-# fetched Android config fragments
-android/configs/android-*.cfg
+# Wireguard
+net/wireguard/
+
+# Build script and changelog generator
+build.sh
+changelog.sh
